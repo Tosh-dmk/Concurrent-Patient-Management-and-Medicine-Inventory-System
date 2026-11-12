@@ -23,6 +23,9 @@ public class Pharmacist implements Runnable {
 
     @Override
     public void run() {
+        // Show the pharmacist's name (not "pool-1-thread-N") in all log lines.
+        String originalName = Thread.currentThread().getName();
+        Thread.currentThread().setName(pharmacistId);
         try {
             while (!Thread.currentThread().isInterrupted()) {
                 DispenseRequest request = requests.take();
@@ -50,6 +53,8 @@ public class Pharmacist implements Runnable {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             System.out.println(pharmacistId + " was interrupted.");
+        } finally {
+            Thread.currentThread().setName(originalName);
         }
     }
 }

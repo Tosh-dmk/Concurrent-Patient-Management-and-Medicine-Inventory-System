@@ -39,13 +39,12 @@ public class Nurse implements Runnable {
         // itself is guaranteed by the write lock inside Patient.)
         synchronized (patient) {
 
-            System.out.println("Nurse ID: " + nurseId + " (" + name
-                    + ") is updating patient vitals.");
-
             patient.updateVitals(new Patient.VitalSigns(
                     75, 36.5, 120, 80, LocalDateTime.now()));
 
-            System.out.println(name + " successfully updated patient vitals.");
+            // One line per update, so output from different nurses stays readable.
+            System.out.println("Nurse ID: " + nurseId + " (" + name
+                    + ") updated vitals for patient " + patient.getId());
         }
     }
 

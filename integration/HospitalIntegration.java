@@ -18,43 +18,49 @@ public class HospitalIntegration {
     private final List<Future<?>> tasks =
         new ArrayList<Future<?>>();
 
-    public void submitDoctor(Runnable doctor) {
-        tasks.add(executor.submit(doctor));
+    public Future<?> submitDoctor(Runnable doctor) {
+        Future<?> future = executor.submit(doctor);
+        tasks.add(future);
+        return future;
     }
 
-    public void submitNurse(Runnable nurse) {
-        tasks.add(executor.submit(nurse));
+    public Future<?> submitNurse(Runnable nurse) {
+        Future<?> future = executor.submit(nurse);
+        tasks.add(future);
+        return future;
     }
 
-    public void submitPharmacist(Runnable pharmacist) {
-        tasks.add(executor.submit(pharmacist));
+    public Future<?> submitPharmacist(Runnable pharmacist) {
+        Future<?> future = executor.submit(pharmacist);
+        tasks.add(future);
+        return future;
     }
 
-    public void submitLaboratoryTechnician(Runnable technician) {
-        tasks.add(executor.submit(() -> {
-            boolean acquired = false;
+    // The technician acquires/releases a machine permit around EACH request
+    // (see LaboratoryTechnician), so the permit is never held for the whole
+    // lifetime of a worker thread.
+    public Future<?> submitLaboratoryTechnician(Runnable technician) {
+        Future<?> future = executor.submit(technician);
+        tasks.add(future);
+        return future;
+    }
+
+    public Semaphore getLaboratoryMachines() {
+        return laboratoryMachines;
+    }
+
+    // Wait for a specific group of tasks (e.g. all nurses).
+    public void await(List<Future<?>> group) {
+        for (Future<?> task : group) {
             try {
-                laboratoryMachines.acquire();
-                acquired = true;
-
-                System.out.println(
-                    Thread.currentThread().getName()
-                    + " acquired a laboratory machine."
-                );
-
-                technician.run();
+                task.get();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-            } finally {
-                if (acquired) {
-                    laboratoryMachines.release();
-                    System.out.println(
-                        Thread.currentThread().getName()
-                        + " released a laboratory machine."
-                    );
-                }
+                break;
+            } catch (ExecutionException e) {
+                System.err.println("Worker task failed: " + e.getCause());
             }
-        }));
+        }
     }
 
     // Wait for submitted one-shot tasks. Long-running workers should be

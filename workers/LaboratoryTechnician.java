@@ -1,30 +1,67 @@
-class LabRequest {
-    int patientId;
-    String testName;
+package workers;
 
-    public LabRequest(int patientId, String testName) {
-        this.patientId = patientId;
-        this.testName = testName;
-    }
-}
+import models.LabRequest;
+import models.LabResult;
+import models.Patient;
+import services.PatientRepository;
 
-// LABORATORY RESULT
-class LabResult {   int patientId;
-    String result;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.Semaphore;
 
-    public LabResult(int patientId, String result) {
-        this.patientId = patientId;
-        this.result = result;
-    }
-}
+public class LaboratoryTechnician implements Runnable {
 
-class LaboratoryTechnician implements Runnable {  private BlockingQueue<LabRequest> requestQueue;
-    private BlockingQueue<LabResult> resultQueue;
+    private final int id;
+    private final BlockingQueue<LabRequest> requestQueue;
+    private final BlockingQueue<LabResult> resultQueue;
+    private final PatientRepository repo;
+    private final Semaphore laboratoryMachines;
 
     public LaboratoryTechnician(
-        BlockingQueue<LabRequest> requests,
-        BlockingQueue<LabResult> results) {
+            int id,
+            BlockingQueue<LabRequest> requests,
+            BlockingQueue<LabResult> results,
+            PatientRepository repo,
+            Semaphore laboratoryMachines) {
 
-        requestQueue = requests;
-        resultQueue = results;
+        this.id = id;
+        this.requestQueue = requests;
+        this.resultQueue = results;
+        this.repo = repo;
+        this.laboratoryMachines = laboratoryMachines;
     }
+
+    @Override
+    public void run() {
+        try {
+            while (true) {
+                LabRequest request = requestQueue.take();
+                if (request.isStopSignal()) {
+                    break;
+                }
+
+                // The semaphore is held per request, not for the whole thread's life.
+                laboratoryMachines.acquire();
+                try {
+                    System.out.println("Technician " + id + " processing "
+                        + request.testName + " for patient " + request.patientId);
+                    Thread.sleep(100); // simulate the machine running the test
+
+                    LabResult result = new LabResult(
+                        request.patientId, request.testName, request.testName + ": normal");
+
+                    Patient patient = repo.get(request.patientId);
+                    if (patient != null) {
+                        patient.addLabResult(result);
+                    }
+                    resultQueue.put(result);
+                } finally {
+                    laboratoryMachines.release();
+                }
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.out.println("Technician " + id + " was interrupted.");
+        }
+        System.out.println("Technician " + id + " finished.");
+    }
+}

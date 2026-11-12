@@ -1,3 +1,5 @@
+package models;
+
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -11,9 +13,6 @@ public class Patient {
     public record VitalSigns(int heartRate, double temperature,
                              int systolicBP, int diastolicBP,
                              LocalDateTime recordedAt) { }
-
-    public record LabResult(String testName, String result,
-                            LocalDateTime completedAt) { }
 
     public record ClinicalNote(String doctorName, String note,
                                LocalDateTime writtenAt) { }
@@ -68,6 +67,17 @@ public class Patient {
         }
     }
 
+    /** Called by doctors: adds a note without changing the diagnosis. */
+    public void addNote(String doctorName, String note) {
+        writeLock.lock();
+        try {
+            notes.add(new ClinicalNote(doctorName, note, LocalDateTime.now()));
+            version++;
+        } finally {
+            writeLock.unlock();
+        }
+    }
+
     /** Called by laboratory technicians. */
     public void addLabResult(LabResult result) {
         writeLock.lock();
@@ -103,6 +113,25 @@ public class Patient {
         readLock.lock();
         try {
             return Collections.unmodifiableList(new ArrayList<>(labResults)); // defensive copy
+        } finally {
+            readLock.unlock();
+        }
+    }
+
+    public int getNoteCount() {
+        readLock.lock();
+        try {
+            return notes.size();
+        } finally {
+            readLock.unlock();
+        }
+    }
+
+    /** Every write bumps version exactly once, so a lost update shows up as a mismatch. */
+    public boolean isConsistent() {
+        readLock.lock();
+        try {
+            return version == vitalsHistory.size() + notes.size() + labResults.size();
         } finally {
             readLock.unlock();
         }

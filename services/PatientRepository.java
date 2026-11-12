@@ -1,4 +1,6 @@
-package hospital;
+package services;
+
+import models.Patient;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,6 +25,11 @@ public class PatientRepository {
 
     public Optional<Patient> find(int id) {
         return Optional.ofNullable(patients.get(id));
+    }
+
+    /** Returns null if absent (used by Doctor). */
+    public Patient get(int id) {
+        return patients.get(id);
     }
 
     public Patient getPatient(int id) {

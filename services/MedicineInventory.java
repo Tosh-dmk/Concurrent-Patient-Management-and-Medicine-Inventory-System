@@ -6,6 +6,7 @@ public class MedicineInventory {
 
     private final String medicineName;
     private int availableDoses;
+    private int totalDispensed; // only touched while holding the lock
 
     // A fair lock helps waiting pharmacists acquire access in queue order.
     private final ReentrantLock lock = new ReentrantLock(true);
@@ -42,6 +43,7 @@ public class MedicineInventory {
             }
 
             availableDoses -= requestedDoses;
+            totalDispensed += requestedDoses;
 
             System.out.println(
                 "Dispensed " + requestedDoses + " doses of "
@@ -57,6 +59,15 @@ public class MedicineInventory {
         lock.lock();
         try {
             return availableDoses;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public int getTotalDispensed() {
+        lock.lock();
+        try {
+            return totalDispensed;
         } finally {
             lock.unlock();
         }

@@ -2,7 +2,6 @@ package models;
 
 import java.time.LocalDateTime;
 
-/** Completed laboratory result, produced by technicians and read by doctors. */
 public class LabResult {
 
     public final int patientId;

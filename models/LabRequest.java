@@ -1,6 +1,5 @@
 package models;
 
-/** A laboratory test requested by a nurse for a patient. */
 public class LabRequest {
 
     public final int patientId;
@@ -19,7 +18,6 @@ public class LabRequest {
         this.stopSignal = true;
     }
 
-    // Poison pill used to stop a laboratory technician.
     public static LabRequest stopRequest() {
         return new LabRequest();
     }

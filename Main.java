@@ -20,11 +20,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class Main {
 
     static final int PATIENTS = 100, DOCTORS = 5, NURSES = 10,
-                     TECHNICIANS = 3, PHARMACISTS = 2, INITIAL_DOSES = 50;
+            TECHNICIANS = 3, PHARMACISTS = 2, INITIAL_DOSES = 50;
 
     public static void main(String[] args) throws InterruptedException {
 
-        // ---- shared resources: each created ONCE and passed to everyone ----
         PatientRepository repo = PatientRepository.withSamplePatients(PATIENTS);
         MedicineInventory inventory = new MedicineInventory("Paracetamol", INITIAL_DOSES);
         LaboratoryService lab = new LaboratoryService();
@@ -40,27 +39,25 @@ public class Main {
         List<Future<?>> technicians = new ArrayList<>();
         List<Future<?>> pharmacists = new ArrayList<>();
 
-        // ---- submit all 20 workers to the thread pool ----
         for (int i = 1; i <= DOCTORS; i++) {
             doctors.add(hospital.submitDoctor(
-                new Doctor(i, repo, lab.completed(), labsDone, writes, retrieved)));
+                    new Doctor(i, repo, lab.completed(), labsDone, writes, retrieved)));
         }
         for (int i = 1; i <= TECHNICIANS; i++) {
             technicians.add(hospital.submitLaboratoryTechnician(
-                new LaboratoryTechnician(i, lab.requests(), lab.completed(),
-                                         repo, hospital.getLaboratoryMachines())));
+                    new LaboratoryTechnician(i, lab.requests(), lab.completed(),
+                            repo, hospital.getLaboratoryMachines())));
         }
         for (int i = 1; i <= PHARMACISTS; i++) {
             pharmacists.add(hospital.submitPharmacist(
-                new Pharmacist("Pharmacist " + i, inventory, dispenseQueue)));
+                    new Pharmacist("Pharmacist " + i, inventory, dispenseQueue)));
         }
         for (int i = 1; i <= NURSES; i++) {
             Patient patient = repo.getPatient(i);
             nurses.add(hospital.submitNurse(
-                new Nurse(i, "Nurse-" + i, patient, lab.requests())));
+                    new Nurse(i, "Nurse-" + i, patient, lab.requests())));
         }
 
-        // ---- patients request the same medication: 20 x 5 doses vs 50 in stock ----
         for (int i = 1; i <= 20; i++) {
             dispenseQueue.put(new DispenseRequest("P" + i, 5));
         }
@@ -68,16 +65,14 @@ public class Main {
             dispenseQueue.put(DispenseRequest.stopRequest());
         }
 
-        // ---- orderly shutdown: nurses -> technicians -> doctors, pharmacists ----
-        hospital.await(nurses);                  // all lab requests are now queued
-        lab.stopTechnicians(TECHNICIANS);        // pills sit behind the real requests
+        hospital.await(nurses);
+        lab.stopTechnicians(TECHNICIANS);
         hospital.await(technicians);
-        lab.markLabsDone();                      // doctors may now finish
+        lab.markLabsDone();
         hospital.await(doctors);
         hospital.await(pharmacists);
         hospital.shutdown();
 
-        // ---- final report ----
         System.out.println("\n========== FINAL REPORT ==========");
         int labResultsStored = 0;
         for (Patient p : repo.getAllPatients()) {
@@ -88,21 +83,22 @@ public class Main {
         System.out.println("Lab results reviewed   : " + retrieved.get());
         System.out.println("Doctor record writes   : " + writes.get());
         System.out.println("Medicine remaining     : " + inventory.getAvailableDoses()
-                           + " (never negative)");
+                + " (never negative)");
         int notesStored = 0, inconsistent = 0;
         for (Patient p : repo.getAllPatients()) {
             notesStored += p.getNoteCount();
-            if (!p.isConsistent()) inconsistent++;
+            if (!p.isConsistent())
+                inconsistent++;
         }
         boolean stockOk = inventory.getAvailableDoses() >= 0
-            && inventory.getTotalDispensed() + inventory.getAvailableDoses() == INITIAL_DOSES;
+                && inventory.getTotalDispensed() + inventory.getAvailableDoses() == INITIAL_DOSES;
         System.out.println("Doses dispensed        : " + inventory.getTotalDispensed());
         System.out.println("CHECK stock balanced   : " + (stockOk ? "PASS" : "FAIL"));
         System.out.println("CHECK no lost writes   : "
-            + (notesStored == writes.get() ? "PASS" : "FAIL")
-            + " (notes stored " + notesStored + " / doctor writes " + writes.get() + ")");
+                + (notesStored == writes.get() ? "PASS" : "FAIL")
+                + " (notes stored " + notesStored + " / doctor writes " + writes.get() + ")");
         System.out.println("CHECK records consistent: "
-            + (inconsistent == 0 ? "PASS" : "FAIL (" + inconsistent + " bad)"));
+                + (inconsistent == 0 ? "PASS" : "FAIL (" + inconsistent + " bad)"));
         System.out.println("Sample record          : " + repo.getPatient(1).getSummary());
     }
 }

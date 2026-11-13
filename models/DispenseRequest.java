@@ -12,8 +12,7 @@ public class DispenseRequest {
         }
         if (requestedDoses <= 0) {
             throw new IllegalArgumentException(
-                "Requested doses must be greater than zero."
-            );
+                    "Requested doses must be greater than zero.");
         }
 
         this.patientId = patientId;
@@ -27,7 +26,6 @@ public class DispenseRequest {
         this.stopSignal = true;
     }
 
-    // Poison-pill request used to stop a pharmacist worker.
     public static DispenseRequest stopRequest() {
         return new DispenseRequest();
     }

@@ -1,6 +1,6 @@
 # Concurrent Patient Management and Medicine Inventory System
 
-**OOP 2 Practical - Threads, Problem 2 (Group 11-15)**
+**OOP 2 Practical - Threads, Problem 2 (BYTE FORCE)**
 
 ## 1. The problem
 
@@ -11,13 +11,13 @@ medicine inventory level.
 
 Setup required by the question, and used in this program:
 
-| Resource | Count |
-|---|---|
-| Registered patients | 100 |
-| Doctors | 5 |
-| Nurses | 10 |
-| Laboratory technicians | 3 |
-| Pharmacists | 2 |
+| Resource                  | Count    |
+| ------------------------- | -------- |
+| Registered patients       | 100      |
+| Doctors                   | 5        |
+| Nurses                    | 10       |
+| Laboratory technicians    | 3        |
+| Pharmacists               | 2        |
 | Shared medicine inventory | 50 doses |
 
 ## 2. How the system works
@@ -46,26 +46,26 @@ Doctors, Nurses, Technicians --> PatientRepository --> Patient (ReadWriteLock)
 
 ### Programming tasks
 
-| Task | Where it is answered |
-|---|---|
+| Task                                                                                   | Where it is answered                                                                                                                    |
+| -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | a. Classes Patient, Doctor, Nurse, LaboratoryTechnician, Pharmacist, MedicineInventory | `models/Patient`, `workers/Doctor`, `workers/Nurse`, `workers/LaboratoryTechnician`, `workers/Pharmacist`, `services/MedicineInventory` |
-| b. Separate threads for the different healthcare workers | Every worker implements `Runnable` and runs on its own pool thread |
-| c. Shared patient record repository used by multiple threads | `services/PatientRepository` (a `ConcurrentHashMap`), one instance shared by all workers |
-| d. Dispensing that keeps inventory from going negative | `MedicineInventory.dispenseMedicine()`: the stock check and the deduction happen in one locked step |
-| e. Java concurrency mechanisms | See the table below |
-| f. Laboratory request queue | Nurses submit, technicians process concurrently, doctors retrieve results (section 2) |
-| g. Patient records stay consistent under simultaneous access | `Patient` uses a fair read/write lock; every update is atomic and readers get a consistent snapshot |
+| b. Separate threads for the different healthcare workers                               | Every worker implements `Runnable` and runs on its own pool thread                                                                      |
+| c. Shared patient record repository used by multiple threads                           | `services/PatientRepository` (a `ConcurrentHashMap`), one instance shared by all workers                                                |
+| d. Dispensing that keeps inventory from going negative                                 | `MedicineInventory.dispenseMedicine()`: the stock check and the deduction happen in one locked step                                     |
+| e. Java concurrency mechanisms                                                         | See the table below                                                                                                                     |
+| f. Laboratory request queue                                                            | Nurses submit, technicians process concurrently, doctors retrieve results (section 2)                                                   |
+| g. Patient records stay consistent under simultaneous access                           | `Patient` uses a fair read/write lock; every update is atomic and readers get a consistent snapshot                                     |
 
 ### Concurrency mechanisms (task e)
 
-| Mechanism | Where | Purpose |
-|---|---|---|
-| `synchronized` | `Nurse.updatePatientVitals()` | One nurse at a time works on a given patient |
-| `ReentrantLock` | `MedicineInventory` | Makes check-and-deduct of medicine one atomic step |
-| `ReentrantReadWriteLock` | `Patient` | Many readers or a single writer; keeps each record consistent |
-| `ExecutorService` | `integration/HospitalIntegration` | Fixed pool of 20 threads for the 20 workers |
-| `BlockingQueue` | `services/LaboratoryService`, dispense queue in `Main` | Producer-consumer communication between workers |
-| `Semaphore` | `HospitalIntegration` / `LaboratoryTechnician` | Limits the laboratory to 2 machines |
+| Mechanism                | Where                                                  | Purpose                                                       |
+| ------------------------ | ------------------------------------------------------ | ------------------------------------------------------------- |
+| `synchronized`           | `Nurse.updatePatientVitals()`                          | One nurse at a time works on a given patient                  |
+| `ReentrantLock`          | `MedicineInventory`                                    | Makes check-and-deduct of medicine one atomic step            |
+| `ReentrantReadWriteLock` | `Patient`                                              | Many readers or a single writer; keeps each record consistent |
+| `ExecutorService`        | `integration/HospitalIntegration`                      | Fixed pool of 20 threads for the 20 workers                   |
+| `BlockingQueue`          | `services/LaboratoryService`, dispense queue in `Main` | Producer-consumer communication between workers               |
+| `Semaphore`              | `HospitalIntegration` / `LaboratoryTechnician`         | Limits the laboratory to 2 machines                           |
 
 ### Questions for students
 

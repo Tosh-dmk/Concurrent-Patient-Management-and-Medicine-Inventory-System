@@ -9,18 +9,18 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class Patient {
 
-    // Immutable value objects (records need Java 16+)
     public record VitalSigns(int heartRate, double temperature,
-                             int systolicBP, int diastolicBP,
-                             LocalDateTime recordedAt) { }
+            int systolicBP, int diastolicBP,
+            LocalDateTime recordedAt) {
+    }
 
     public record ClinicalNote(String doctorName, String note,
-                               LocalDateTime writtenAt) { }
+            LocalDateTime writtenAt) {
+    }
 
     private final int id;
     private final String name;
 
-    // Mutable state: only touched while holding the lock
     private VitalSigns latestVitals;
     private final List<VitalSigns> vitalsHistory = new ArrayList<>();
     private final List<LabResult> labResults = new ArrayList<>();
@@ -37,13 +37,14 @@ public class Patient {
         this.name = name;
     }
 
-    // id and name never change, so no lock needed
-    public int getId() { return id; }
-    public String getName() { return name; }
+    public int getId() {
+        return id;
+    }
 
-    // ---------- WRITE operations ----------
+    public String getName() {
+        return name;
+    }
 
-    /** Called by nurses. */
     public void updateVitals(VitalSigns vitals) {
         writeLock.lock();
         try {
@@ -55,7 +56,6 @@ public class Patient {
         }
     }
 
-    /** Called by doctors. Updates diagnosis and adds a note as ONE atomic change. */
     public void updateDiagnosis(String doctorName, String newDiagnosis, String note) {
         writeLock.lock();
         try {
@@ -67,7 +67,6 @@ public class Patient {
         }
     }
 
-    /** Called by doctors: adds a note without changing the diagnosis. */
     public void addNote(String doctorName, String note) {
         writeLock.lock();
         try {
@@ -78,7 +77,6 @@ public class Patient {
         }
     }
 
-    /** Called by laboratory technicians. */
     public void addLabResult(LabResult result) {
         writeLock.lock();
         try {
@@ -89,12 +87,10 @@ public class Patient {
         }
     }
 
-    // ---------- READ operations ----------
-
     public VitalSigns getLatestVitals() {
         readLock.lock();
         try {
-            return latestVitals; // immutable, safe to return
+            return latestVitals;
         } finally {
             readLock.unlock();
         }
@@ -127,7 +123,6 @@ public class Patient {
         }
     }
 
-    /** Every write bumps version exactly once, so a lost update shows up as a mismatch. */
     public boolean isConsistent() {
         readLock.lock();
         try {
@@ -146,18 +141,14 @@ public class Patient {
         }
     }
 
-    /** A consistent snapshot: diagnosis, vitals, notes and labs all from the same moment. */
     public String getSummary() {
         readLock.lock();
         try {
             return String.format(
-                "Patient[%d, %s] v%d | diagnosis=%s | vitals=%s | notes=%d | labs=%d",
-                id, name, version, diagnosis, latestVitals, notes.size(), labResults.size());
+                    "Patient[%d, %s] v%d | diagnosis=%s | vitals=%s | notes=%d | labs=%d",
+                    id, name, version, diagnosis, latestVitals, notes.size(), labResults.size());
         } finally {
             readLock.unlock();
         }
     }
 }
-
-
-

@@ -39,15 +39,14 @@ public class LaboratoryTechnician implements Runnable {
                     break;
                 }
 
-                // The semaphore is held per request, not for the whole thread's life.
                 laboratoryMachines.acquire();
                 try {
                     System.out.println("Technician " + id + " processing "
-                        + request.testName + " for patient " + request.patientId);
+                            + request.testName + " for patient " + request.patientId);
                     Thread.sleep(100); // simulate the machine running the test
 
                     LabResult result = new LabResult(
-                        request.patientId, request.testName, request.testName + ": normal");
+                            request.patientId, request.testName, request.testName + ": normal");
 
                     Patient patient = repo.get(request.patientId);
                     if (patient != null) {

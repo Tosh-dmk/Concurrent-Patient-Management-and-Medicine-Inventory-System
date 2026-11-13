@@ -12,10 +12,9 @@ public class Pharmacist implements Runnable {
     private final BlockingQueue<DispenseRequest> requests;
 
     public Pharmacist(
-        String pharmacistId,
-        MedicineInventory inventory,
-        BlockingQueue<DispenseRequest> requests
-    ) {
+            String pharmacistId,
+            MedicineInventory inventory,
+            BlockingQueue<DispenseRequest> requests) {
         this.pharmacistId = pharmacistId;
         this.inventory = inventory;
         this.requests = requests;
@@ -23,7 +22,6 @@ public class Pharmacist implements Runnable {
 
     @Override
     public void run() {
-        // Show the pharmacist's name (not "pool-1-thread-N") in all log lines.
         String originalName = Thread.currentThread().getName();
         Thread.currentThread().setName(pharmacistId);
         try {
@@ -35,20 +33,17 @@ public class Pharmacist implements Runnable {
                 }
 
                 System.out.println(
-                    pharmacistId + " processing request for patient "
-                    + request.getPatientId()
-                );
+                        pharmacistId + " processing request for patient "
+                                + request.getPatientId());
 
                 boolean successful = inventory.dispenseMedicine(
-                    request.getRequestedDoses()
-                );
+                        request.getRequestedDoses());
 
                 System.out.println(
-                    pharmacistId + (successful
-                        ? " successfully served patient "
-                        : " could not serve patient ")
-                    + request.getPatientId()
-                );
+                        pharmacistId + (successful
+                                ? " successfully served patient "
+                                : " could not serve patient ")
+                                + request.getPatientId());
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();

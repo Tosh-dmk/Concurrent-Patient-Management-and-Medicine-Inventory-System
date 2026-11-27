@@ -2,6 +2,7 @@ package workers;
 
 import models.LabResult;
 import models.Patient;
+import services.DatabaseLogger;
 import services.PatientRepository;
 
 import java.util.Random;
@@ -20,6 +21,7 @@ public class Doctor implements Runnable {
     private final AtomicBoolean labsDone;
     private final AtomicInteger writes;
     private final AtomicInteger retrieved;
+    private DatabaseLogger logger = DatabaseLogger.disabled();
 
     
     public Doctor(int id,
@@ -35,6 +37,12 @@ public class Doctor implements Runnable {
         this.labsDone = labsDone;
         this.writes = writes;
         this.retrieved = retrieved;
+    }
+
+    /** Optional: record this doctor's actions in the database. */
+    public Doctor withLogger(DatabaseLogger logger) {
+        this.logger = logger;
+        return this;
     }
 
     @Override
@@ -66,6 +74,8 @@ public class Doctor implements Runnable {
                         );
 
                         writes.incrementAndGet();
+                        logger.log("DOCTOR", "Dr-" + id, patientId,
+                            "NOTE_ADDED", "Routine review");
                     }
                 }
 
@@ -87,6 +97,8 @@ public class Doctor implements Runnable {
 
                         writes.incrementAndGet();
                         retrieved.incrementAndGet();
+                        logger.log("DOCTOR", "Dr-" + id, result.patientId,
+                            "LAB_RESULT_REVIEWED", result.text);
 
                     } else {
                         System.out.println(

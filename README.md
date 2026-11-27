@@ -1,6 +1,6 @@
 # Concurrent Patient Management and Medicine Inventory System
 
-**OOP 2 Practical - Threads, Problem 2 (BYTE FORCE)**
+**OOP 2 Practical - Threads, Problem 2 (Group 11-15)**
 
 ## 1. The problem
 
@@ -11,13 +11,13 @@ medicine inventory level.
 
 Setup required by the question, and used in this program:
 
-| Resource                  | Count    |
-| ------------------------- | -------- |
-| Registered patients       | 100      |
-| Doctors                   | 5        |
-| Nurses                    | 10       |
-| Laboratory technicians    | 3        |
-| Pharmacists               | 2        |
+| Resource | Count |
+|---|---|
+| Registered patients | 100 |
+| Doctors | 5 |
+| Nurses | 10 |
+| Laboratory technicians | 3 |
+| Pharmacists | 2 |
 | Shared medicine inventory | 50 doses |
 
 ## 2. How the system works
@@ -46,26 +46,26 @@ Doctors, Nurses, Technicians --> PatientRepository --> Patient (ReadWriteLock)
 
 ### Programming tasks
 
-| Task                                                                                   | Where it is answered                                                                                                                    |
-| -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Task | Where it is answered |
+|---|---|
 | a. Classes Patient, Doctor, Nurse, LaboratoryTechnician, Pharmacist, MedicineInventory | `models/Patient`, `workers/Doctor`, `workers/Nurse`, `workers/LaboratoryTechnician`, `workers/Pharmacist`, `services/MedicineInventory` |
-| b. Separate threads for the different healthcare workers                               | Every worker implements `Runnable` and runs on its own pool thread                                                                      |
-| c. Shared patient record repository used by multiple threads                           | `services/PatientRepository` (a `ConcurrentHashMap`), one instance shared by all workers                                                |
-| d. Dispensing that keeps inventory from going negative                                 | `MedicineInventory.dispenseMedicine()`: the stock check and the deduction happen in one locked step                                     |
-| e. Java concurrency mechanisms                                                         | See the table below                                                                                                                     |
-| f. Laboratory request queue                                                            | Nurses submit, technicians process concurrently, doctors retrieve results (section 2)                                                   |
-| g. Patient records stay consistent under simultaneous access                           | `Patient` uses a fair read/write lock; every update is atomic and readers get a consistent snapshot                                     |
+| b. Separate threads for the different healthcare workers | Every worker implements `Runnable` and runs on its own pool thread |
+| c. Shared patient record repository used by multiple threads | `services/PatientRepository` (a `ConcurrentHashMap`), one instance shared by all workers |
+| d. Dispensing that keeps inventory from going negative | `MedicineInventory.dispenseMedicine()`: the stock check and the deduction happen in one locked step |
+| e. Java concurrency mechanisms | See the table below |
+| f. Laboratory request queue | Nurses submit, technicians process concurrently, doctors retrieve results (section 2) |
+| g. Patient records stay consistent under simultaneous access | `Patient` uses a fair read/write lock; every update is atomic and readers get a consistent snapshot |
 
 ### Concurrency mechanisms (task e)
 
-| Mechanism                | Where                                                  | Purpose                                                       |
-| ------------------------ | ------------------------------------------------------ | ------------------------------------------------------------- |
-| `synchronized`           | `Nurse.updatePatientVitals()`                          | One nurse at a time works on a given patient                  |
-| `ReentrantLock`          | `MedicineInventory`                                    | Makes check-and-deduct of medicine one atomic step            |
-| `ReentrantReadWriteLock` | `Patient`                                              | Many readers or a single writer; keeps each record consistent |
-| `ExecutorService`        | `integration/HospitalIntegration`                      | Fixed pool of 20 threads for the 20 workers                   |
-| `BlockingQueue`          | `services/LaboratoryService`, dispense queue in `Main` | Producer-consumer communication between workers               |
-| `Semaphore`              | `HospitalIntegration` / `LaboratoryTechnician`         | Limits the laboratory to 2 machines                           |
+| Mechanism | Where | Purpose |
+|---|---|---|
+| `synchronized` | `Nurse.updatePatientVitals()` | One nurse at a time works on a given patient |
+| `ReentrantLock` | `MedicineInventory` | Makes check-and-deduct of medicine one atomic step |
+| `ReentrantReadWriteLock` | `Patient` | Many readers or a single writer; keeps each record consistent |
+| `ExecutorService` | `integration/HospitalIntegration` | Fixed pool of 20 threads for the 20 workers |
+| `BlockingQueue` | `services/LaboratoryService`, dispense queue in `Main` | Producer-consumer communication between workers |
+| `Semaphore` | `HospitalIntegration` / `LaboratoryTechnician` | Limits the laboratory to 2 machines |
 
 ### Questions for students
 
@@ -108,11 +108,13 @@ When the program finishes, `Main` prints a final report with three checks:
 Main.java                 wires everything together and prints the report
 models/                   Patient, LabRequest, LabResult, DispenseRequest
 workers/                  Doctor, Nurse, LaboratoryTechnician, Pharmacist
-services/                 PatientRepository, MedicineInventory, LaboratoryService
+services/                 PatientRepository, MedicineInventory, LaboratoryService, DatabaseLogger
 integration/              HospitalIntegration (thread pool and lab machine semaphore)
+database/                 hospital_db.sql (creates the MySQL database and table)
+lib/                      put the MySQL Connector/J .jar here
 ```
 
-## 7. Build and run
+## 7. Build and run (without the database)
 
 Requires JDK 16 or newer (`Patient` uses Java records).
 
@@ -120,3 +122,47 @@ Requires JDK 16 or newer (`Patient` uses Java records).
 javac -d out $(find . -name "*.java")
 java -cp out Main
 ```
+
+If MySQL is not reachable the program prints a `[DB] WARNING` and runs normally without saving.
+
+## 8. Saving the simulation to MySQL (JDBC)
+
+Every action of the workers is saved as a row in the table `hospital_events`
+(nurse vitals and lab requests, technician results, doctor notes and reviews,
+pharmacist dispensing, plus a start and a finish row for each run).
+
+**How it works.** `DatabaseLogger` uses JDBC (`DriverManager`, `Connection`,
+`PreparedStatement`, `ResultSet`). Workers only put an event on a BlockingQueue, so the
+20 threads never wait for the database. One writer thread (a single-thread
+ExecutorService) takes the events and inserts them in batches inside a transaction.
+A JDBC Connection is not thread-safe, so only that thread uses it. If a batch fails the
+logger reconnects once and retries; if the database is down the simulation still runs.
+Each run has its own `run_id`, so runs can be told apart.
+
+**Setup (once):**
+1. Run the script: `mysql -u root -p < database/hospital_db.sql` (or run it in MySQL Workbench).
+2. Download MySQL Connector/J and put the `.jar` in `lib/` (see `lib/PUT_MYSQL_CONNECTOR_JAR_HERE.txt`).
+
+**Run (PowerShell, Windows):**
+```powershell
+javac -d out (Get-ChildItem -Recurse -Filter *.java).FullName
+$env:DB_PASSWORD = "your_mysql_password"
+java -cp "out;lib/mysql-connector-j-9.1.0.jar" Main
+```
+Use your real jar file name. On Linux or macOS the classpath separator is `:` instead of `;`.
+
+Settings are read from environment variables, so no password is written in the code:
+`DB_URL` (default `jdbc:mysql://localhost:3306/hospital_db?...`), `DB_USER` (default `root`)
+and `DB_PASSWORD` (default empty).
+
+**Check the result in MySQL:**
+```sql
+USE hospital_db;
+SELECT worker_type, action, COUNT(*) FROM hospital_events
+WHERE run_id = (SELECT run_id FROM hospital_events ORDER BY id DESC LIMIT 1)
+GROUP BY worker_type, action;
+```
+The final report also prints `CHECK database rows`, which compares the rows found in the
+table with the events the program saved. After the report, `printRunSummary()` reads the
+rows back with `SELECT` and a `ResultSet` and prints how many events of each kind this run
+saved, plus the last 5 events.

@@ -3,6 +3,7 @@ package workers;
 import models.LabRequest;
 import models.LabResult;
 import models.Patient;
+import services.DatabaseLogger;
 import services.PatientRepository;
 
 import java.util.concurrent.BlockingQueue;
@@ -15,6 +16,7 @@ public class LaboratoryTechnician implements Runnable {
     private final BlockingQueue<LabResult> resultQueue;
     private final PatientRepository repo;
     private final Semaphore laboratoryMachines;
+    private DatabaseLogger logger = DatabaseLogger.disabled();
 
     public LaboratoryTechnician(
             int id,
@@ -30,6 +32,12 @@ public class LaboratoryTechnician implements Runnable {
         this.laboratoryMachines = laboratoryMachines;
     }
 
+    /** Optional: record this technician's actions in the database. */
+    public LaboratoryTechnician withLogger(DatabaseLogger logger) {
+        this.logger = logger;
+        return this;
+    }
+
     @Override
     public void run() {
         try {
@@ -39,20 +47,23 @@ public class LaboratoryTechnician implements Runnable {
                     break;
                 }
 
+                // The semaphore is held per request, not for the whole thread's life.
                 laboratoryMachines.acquire();
                 try {
                     System.out.println("Technician " + id + " processing "
-                            + request.testName + " for patient " + request.patientId);
+                        + request.testName + " for patient " + request.patientId);
                     Thread.sleep(100); // simulate the machine running the test
 
                     LabResult result = new LabResult(
-                            request.patientId, request.testName, request.testName + ": normal");
+                        request.patientId, request.testName, request.testName + ": normal");
 
                     Patient patient = repo.get(request.patientId);
                     if (patient != null) {
                         patient.addLabResult(result);
                     }
                     resultQueue.put(result);
+                    logger.log("LAB_TECHNICIAN", "Technician " + id, request.patientId,
+                        "LAB_COMPLETED", result.text);
                 } finally {
                     laboratoryMachines.release();
                 }
